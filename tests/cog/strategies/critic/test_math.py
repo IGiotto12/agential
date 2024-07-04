@@ -3,14 +3,14 @@
 from langchain_community.chat_models.fake import FakeListChatModel
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from agential.cog.prompts.agents.critic import (
+from agential.cog.prompts.agent.critic import (
     CRITIC_CRITIQUE_INSTRUCTION_GSM8K,
     CRITIC_CRITIQUE_NO_TOOL_INSTRUCTION_GSM8K,
     CRITIC_POT_INSTRUCTION_GSM8K,
     GSM8K_FEWSHOT_EXAMPLES_CRITIC,
     GSM8K_FEWSHOT_EXAMPLES_CRITIC_NO_TOOL,
 )
-from agential.cog.prompts.benchmarks.gsm8k import (
+from agential.cog.prompts.benchmark.gsm8k import (
     GSM8K_FEWSHOT_EXAMPLES_POT,
 )
 from agential.cog.strategies.critic.math import (
@@ -74,7 +74,7 @@ def test_generate_critique() -> None:
     )
 
     assert result == gt_result
-    assert external_tool_info == {}
+    assert external_tool_info == {"execution_status": "", "code_answer": ""}
 
     # Test with tool.
     gt_result = "1. The revenue from selling eggs should be a positive number, -9867630 < 0, which is not reasonable.\n\n2. Let's check the code:\n\n- `total_eggs = 16` - This defines the total number of eggs laid by Janet's ducks per day.\n- `eaten_eggs = 3` - This represents the number of eggs Janet eats for breakfast.\n- `baked_eggs = 4933828` - This represents the number of eggs Janet uses to bake muffins for her friends daily.\n- `sold_eggs = total_eggs - eaten_eggs - baked_eggs` - This calculates the number of eggs Janet has left to sell at the farmers' market.\n- `dollars_per_egg = 2` - This represents the selling price of each fresh duck egg.\n- `answer = sold_eggs * dollars_per_egg` - This calculates the total revenue from selling eggs at the farmers' market.\n\nThe issue with the code is that the calculation for `sold_eggs` is incorrect. Janet should only sell the eggs that are left after she eats some for breakfast and uses some for baking. \n\n"
@@ -152,10 +152,15 @@ def test_create_output_dict() -> None:
 
     result = strategy.create_output_dict(answer, critique, external_tool_info)
 
-    assert result["code"] == answer
+    assert result["answer"] == answer
     assert result["critique"] == critique
-    assert result["execution_status"] == external_tool_info["execution_status"]
-    assert result["code_answer"] == external_tool_info["code_answer"]
+    assert (
+        result["external_tool_info"]["execution_status"]
+        == external_tool_info["execution_status"]
+    )
+    assert (
+        result["external_tool_info"]["code_answer"] == external_tool_info["code_answer"]
+    )
 
 
 def test_update_answer_based_on_critique() -> None:

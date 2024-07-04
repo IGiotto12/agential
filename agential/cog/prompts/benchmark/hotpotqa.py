@@ -1,34 +1,5 @@
 """Few-shot examples for HotpotQA."""
 
-HOTPOTQA_FEWSHOT_EXAMPLES_COT = """Q: What is the elevation range for the area that the eastern sector of the Colorado orogeny extends into?
-A: Let's think step by step. The eastern sector of Colorado orogeny extends into the High Plains. High Plains rise in elevation from around 1,800 to 7,000 ft. So the answer is: 1,800 to 7,000 ft.
-
----
-
-Q: Musician and satirist Allie Goertz wrote a song about the "The Simpsons" character Milhouse, who Matt Groening named after who?
-A: Let's think step by step. Milhouse was named after U.S. president Richard Nixon. So the answer is: Richard Nixon.
-
----
-
-Q: Which documentary is about Finnish rock groups, Adam Clayton Powell or The Saimaa Gesture?
-A: Let's think step by step. Adam Clayton Powell (film) is a documentary about an African-American politician, not Finnish rock groups. So the documentary about Finnish rock groups must instead be The Saimaa Gesture. So the answer is: The Saimaa Gesture.
-
----
-
-Q: What profession does Nicholas Ray and Elia Kazan have in common?
-A: Let's think step by step. Professions of Nicholas Ray are director, screenwriter, and actor. Professions of Elia Kazan are director, producer, screenwriter, and actor. So profession Nicholas Ray and Elia Kazan have in common is director, screenwriter, and actor. So the answer is: director, screenwriter, actor.
-
----
-
-Q: Which magazine was started first Arthur's Magazine or First for Women?
-A: Let's think step by step. Arthur's Magazine was started in 1844. First for Women was started in 1989. 1844 (Arthur's Magazine) < 1989 (First for Women), so Arthur's Magazine was started first. So the answer is: Arthur's Magazine.
-
----
-
-Q: Were Pavel Urysohn and Leonid Levin known for the same type of work?
-A: Let's think step by step. Pavel Urysohn is a mathematician. Leonid Levin is a mathematician and computer scientist. So Pavel Urysohn and Leonid Levin have the same type of work. So the answer is: Yes."""
-
-
 HOTPOTQA_FEWSHOT_EXAMPLES_DIRECT = """Q: What is the elevation range for the area that the eastern sector of the Colorado orogeny extends into?
 A: 1,800 to 7,000 ft
 
@@ -58,6 +29,31 @@ Q: Were Pavel Urysohn and Leonid Levin known for the same type of work?
 A: Yes"""
 
 
+HOTPOTQA_FEWSHOT_EXAMPLES_COT = """Question: What is the elevation range for the area that the eastern sector of the Colorado orogeny extends into?
+Thought: Let's think step by step. The eastern sector of Colorado orogeny extends into the High Plains. High Plains rise in elevation from around 1,800 to 7,000 ft, so the answer is 1,800 to 7,000 ft.
+Action: Finish[1,800 to 7,000 ft]
+
+Question: Musician and satirist Allie Goertz wrote a song about the "The Simpsons" character Milhouse, who Matt Groening named after who?
+Thought: Let's think step by step. Milhouse was named after U.S. president Richard Nixon, so the answer is Richard Nixon.
+Action: Finish[Richard Nixon]
+
+Question: Which documentary is about Finnish rock groups, Adam Clayton Powell or The Saimaa Gesture?
+Thought: Let's think step by step. Adam Clayton Powell (film) is a documentary about an African-American politician, not Finnish rock groups. So the documentary about Finnish rock groups must instead be The Saimaa Gesture.
+Action: Finish[The Saimaa Gesture]
+
+Question: What profession does Nicholas Ray and Elia Kazan have in common?
+Thought: Let's think step by step. Professions of Nicholas Ray are director, screenwriter, and actor. Professions of Elia Kazan are director, producer, screenwriter, and actor. So profession Nicholas Ray and Elia Kazan have in common is director, screenwriter, and actor.
+Action: Finish[director, screenwriter, actor]
+
+Question: Which magazine was started first Arthur's Magazine or First for Women?
+Thought: Let's think step by step. Arthur's Magazine was started in 1844. First for Women was started in 1989. 1844 (Arthur's Magazine) < 1989 (First for Women), so Arthur's Magazine was started first.
+Action: Finish[Arthur's Magazine]
+
+Question: Were Pavel Urysohn and Leonid Levin known for the same type of work?
+Thought: Let's think step by step. Pavel Urysohn is a mathematician. Leonid Levin is a mathematician and computer scientist. So Pavel Urysohn and Leonid Levin have the same type of work.
+Action: Finish[Yes]"""
+
+
 HOTPOTQA_FEWSHOT_EXAMPLES_REACT = """Question: What is the elevation range for the area that the eastern sector of the Colorado orogeny extends into?
 Thought 1: I need to search Colorado orogeny, find the area that the eastern sector of the Colorado orogeny extends into, then find the elevation range of the area.
 Action 1: Search[Colorado orogeny]
@@ -77,14 +73,17 @@ Action 5: Finish[1,800 to 7,000 ft]
 ---
 
 Question: Musician and satirist Allie Goertz wrote a song about the "The Simpsons" character Milhouse, who Matt Groening named after who?
-Thought 1: The question simplifies to "The Simpsons" character Milhouse is named after who. I only need to search Milhouse and find who it is named after.
-Action 1: Search[Milhouse]
-Observation 1: Milhouse Mussolini Van Houten is a recurring character in the Fox animated television series The Simpsons voiced by Pamela Hayden and created by Matt Groening.
-Thought 2: The paragraph does not tell who Milhouse is named after, maybe I can look up "named after".
-Action 2: Lookup[named after]
-Observation 2: (Result 1 / 1) Milhouse was named after U.S. president Richard Nixon, whose middle name was Milhous. 
-Thought 3: Milhouse was named after U.S. president Richard Nixon, so the answer is Richard Nixon.
-Action 3: Finish[Richard Nixon]
+Thought 1: I need to confirm who Matt Groening is and his connection to "The Simpsons".
+Action 1: Search[Matt Groening]
+Observation 1: Matt Groening is an American cartoonist, writer, producer, and animator, best known for creating the animated television series "The Simpsons".
+Thought 2: Since Matt Groening created "The Simpsons" and named the character Milhouse, I need to find out whom he named Milhouse after.
+Action 2: Search[Milhouse inspiration]
+Observation 2: Matt Groening named the character Milhouse after Richard Milhous Nixon, the 37th President of the United States.
+Thought 3: To ensure accuracy, I should verify the connection between Matt Groening naming Milhouse after Richard Nixon.
+Action 3: Search[Milhouse named after Richard Nixon]
+Observation 3: It is confirmed that Matt Groening named Milhouse after Richard Nixon, as stated in various sources discussing the origins of "The Simpsons" characters.
+Thought 4: Allie Goertz's song about Milhouse connects back to Matt Groening's naming of the character after Richard Nixon.
+Action 4: Finish[Richard Nixon]
 
 ---
 
@@ -113,15 +112,20 @@ Action 3: Finish[director, screenwriter, actor]
 
 ---
 
+
 Question: Which magazine was started first Arthur's Magazine or First for Women?
-Thought 1: I need to search Arthur's Magazine and First for Women, and find which was started first.
-Action 1: Search[Arthur's Magazine]
-Observation 1: Arthur's Magazine (1844-1846) was an American literary periodical published in Philadelphia in the 19th century. 
-Thought 2: Arthur's Magazine was started in 1844. I need to search First for Women next.
-Action 2: Search[First for Women]
-Observation 2: First for Women is a woman's magazine published by Bauer Media Group in the USA.[1] The magazine was started in 1989. 
-Thought 3: First for Women was started in 1989. 1844 (Arthur's Magazine) < 1989 (First for Women), so Arthur's Magazine was started first.
-Action 3: Finish[Arthur's Magazine]
+Thought 1: I need to search for the founding dates of Arthur's Magazine and First for Women to determine which was started first.
+Action 1: Search[founding date of Arthur's Magazine]
+Observation 1: Arthur's Magazine was founded in 1844.
+Thought 2: Now I need to find the founding date of First for Women.
+Action 2: Search[founding date of First for Women]
+Observation 2: First for Women was founded in 1989.
+Thought 3: I need to verify these dates to ensure their accuracy.
+Action 3: (Result 1 / 1) Lookup[Arthur's Magazine founding date, First for Women founding date]
+Observation 3: Arthur's Magazine is founded in 1844 and First for Women is founded in 1989.
+Thought 4: Since Arthur's Magazine was founded in 1844 and First for Women was founded in 1989, Arthur's Magazine was started first.
+Action 4: Finish[Arthur's Magazine]
+
 
 ---
 

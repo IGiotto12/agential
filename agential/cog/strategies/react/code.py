@@ -12,6 +12,7 @@ from tiktoken.core import Encoding
 from agential.cog.functional.react import _is_halted, _prompt_agent
 from agential.cog.strategies.react.base import ReActBaseStrategy
 from agential.utils.general import safe_execute
+from agential.utils.parse import remove_newline
 
 
 def parse_code_action(action: str) -> Tuple[str, str]:
@@ -56,7 +57,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
         self,
         llm: BaseChatModel,
         max_steps: int = 6,
-        max_tokens: int = 3896,
+        max_tokens: int = 5000,
         enc: Encoding = tiktoken.encoding_for_model("gpt-3.5-turbo"),
     ) -> None:
         """Initialization."""
@@ -66,7 +67,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
         self.enc = enc
 
         self._scratchpad = ""
-        self._current_answer = ""
+        self._answer = ""
         self._finished = False
 
     def generate(
@@ -75,7 +76,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
         examples: str,
         prompt: str,
         additional_keys: Dict[str, str],
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ) -> str:
         """Generates a thought based on the question, examples, and prompt.
 
@@ -84,7 +85,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
             examples (str): Examples to guide the generation process.
             prompt (str): The prompt used for generating the thought.
             additional_keys (Dict[str, str]): Additional keys for the generation process.
-            **kwargs (Dict[str, Any]): Additional arguments.
+            **kwargs (Any): Additional arguments.
 
         Returns:
             str: The generated thought.
@@ -92,20 +93,16 @@ class ReActCodeStrategy(ReActBaseStrategy):
         max_steps = kwargs.get("max_steps", self.max_steps)  # type: ignore
 
         self._scratchpad += "\nThought:"
-        thought = (
-            _prompt_agent(
-                llm=self.llm,
-                question=question,
-                scratchpad=self._scratchpad,
-                examples=examples,
-                max_steps=max_steps,  # type: ignore
-                additional_keys=additional_keys,
-                prompt=prompt,
-            )
-            .split("Action")[0]
-            .strip()
-            .split("\n")[0]
+        thought = _prompt_agent(
+            llm=self.llm,
+            question=question,
+            scratchpad=self._scratchpad,
+            examples=examples,
+            max_steps=max_steps,  # type: ignore
+            prompt=prompt,
+            additional_keys=additional_keys,
         )
+        thought = remove_newline(thought).split("Action")[0].strip()
         self._scratchpad += " " + thought
 
         return thought
@@ -116,7 +113,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
         examples: str,
         prompt: str,
         additional_keys: Dict[str, str],
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ) -> Tuple[str, str]:
         """Generates an action based on the question, examples, and prompt.
 
@@ -125,7 +122,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
             examples (str): Examples to guide the generation process.
             prompt (str): The prompt used for generating the action.
             additional_keys (Dict[str, str]): Additional keys for the generation process.
-            **kwargs (Dict[str, Any]): Additional arguments.
+            **kwargs (Any): Additional arguments.
 
         Returns:
             Tuple[str, str]: The generated action type and code.
@@ -138,8 +135,8 @@ class ReActCodeStrategy(ReActBaseStrategy):
             scratchpad=self._scratchpad,
             examples=examples,
             max_steps=max_steps,  # type: ignore
-            additional_keys=additional_keys,
             prompt=prompt,
+            additional_keys=additional_keys,
         )
         action = action.split("Observation")[0].strip()
 
@@ -148,7 +145,9 @@ class ReActCodeStrategy(ReActBaseStrategy):
 
         return action_type, query
 
-    def generate_observation(self, idx: int, action_type: str, query: str) -> str:
+    def generate_observation(
+        self, idx: int, action_type: str, query: str
+    ) -> Tuple[str, Dict[str, Any]]:
         """Generates an observation based on the action type and query.
 
         Args:
@@ -157,30 +156,44 @@ class ReActCodeStrategy(ReActBaseStrategy):
             query (str): The query for the action.
 
         Returns:
-            str: The generated observation.
+            Tuple[str, Dict[str, Any]]: The generated observation and external tool outputs.
         """
+        external_tool_info = {"execution_status": ""}
+
         self._scratchpad += f"\nObservation {idx}: "
         if action_type.lower() == "finish":
-            self._current_answer = query
+            _, execution_status = safe_execute(query)
+            external_tool_info["execution_status"] = execution_status
+
+            self._answer = query
             self._finished = True
-            obs = f"\n```python\n{self._current_answer}\n```"
+            obs = f"\n```python\n{self._answer}\n```"
         elif action_type.lower() == "implement":
             _, execution_status = safe_execute(query)
-            self._current_answer = query
-            obs = f"\n```python\n{self._current_answer}\n```\nExecution Status: {execution_status}"
+            external_tool_info["execution_status"] = execution_status
+
+            self._answer = query
+            obs = f"\n```python\n{self._answer}\n```\nExecution Status: {execution_status}"
         elif action_type.lower() == "test":
-            obs = f"{self._current_answer}\n\n{query}"
+            obs = f"{self._answer}\n\n{query}"
             _, execution_status = safe_execute(obs)
+            external_tool_info["execution_status"] = execution_status
+
             obs = f"\n```python\n{obs}\n```\nExecution Status: {execution_status}"
         else:
             obs = "Invalid Action. Valid Actions are Implement[code] Test[code] and Finish[answer]."
         self._scratchpad += obs
 
-        return obs
+        return obs, external_tool_info
 
     def create_output_dict(
-        self, thought: str, action_type: str, query: str, obs: str
-    ) -> Dict[str, str]:
+        self,
+        thought: str,
+        action_type: str,
+        query: str,
+        obs: str,
+        external_tool_info: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """Creates a dictionary of the output components.
 
         Args:
@@ -188,16 +201,18 @@ class ReActCodeStrategy(ReActBaseStrategy):
             action_type (str): The type of action performed.
             query (str): The query for the action.
             obs (str): The generated observation.
+            external_tool_info (Dict[str, Any]): The external tool outputs.
 
         Returns:
-            Dict[str, str]: A dictionary containing the thought, action type, query, observation, and answer.
+            Dict[str, Any]: A dictionary containing the thought, action type, query, observation, answer, and external tool output.
         """
         return {
             "thought": thought,
             "action_type": action_type,
             "query": query,
             "observation": obs,
-            "answer": self._current_answer,
+            "answer": self._answer,
+            "external_tool_info": external_tool_info,
         }
 
     def halting_condition(
@@ -207,7 +222,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
         examples: str,
         prompt: str,
         additional_keys: Dict[str, str],
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ) -> bool:
         """Determines whether the halting condition has been met.
 
@@ -217,7 +232,7 @@ class ReActCodeStrategy(ReActBaseStrategy):
             examples (str): Examples to guide the generation process.
             prompt (str): The prompt used for generating the thought and action.
             additional_keys (Dict[str, str]): Additional keys for the generation process.
-            **kwargs (Dict[str, Any]): Additional arguments.
+            **kwargs (Any): Additional arguments.
 
         Returns:
             bool: True if the halting condition is met, False otherwise.
@@ -233,16 +248,22 @@ class ReActCodeStrategy(ReActBaseStrategy):
             max_steps=max_steps,  # type: ignore
             max_tokens=self.max_tokens,
             enc=self.enc,
-            additional_keys=additional_keys,
             prompt=prompt,
+            additional_keys=additional_keys,
         )
 
-    def reset(self) -> None:
+    def reset(self, **kwargs: Any) -> None:
         """Resets the internal state of the strategy.
 
         Resets the current answer, scratchpad, and the finished flag.
+
+        Args:
+            **kwargs (Any): Additional arguments.
+
+        Returns:
+            None
         """
-        self._current_answer = ""
+        self._answer = ""
         self._scratchpad = ""
         self._finished = False
 
